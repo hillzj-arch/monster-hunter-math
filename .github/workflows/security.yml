@@ -1,0 +1,10 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  security:
+    uses: hillzj-arch/PipelineScanner/.github/workflows/scan.yml@main

@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monster Hunter Math</title>
+<style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #09091a;
+  --bg-panel:  #11112a;
+  --bg-card:   #18183a;
+  --gold:      #ffd700;
+  --text:      #e8e0ff;
+  --text-dim:  #7777aa;
+  --hp-green:  #27ae60;
+  --hp-orange: #e67e22;
+  --hp-red:    #c0392b;
+  --hp-bg:     #2a2a2a;
+  --border:    rgba(255,215,0,0.18);
+  --correct:   #27ae60;
+  --wrong:     #c0392b;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Georgia, 'Times New Roman', serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image:
+    radial-gradient(ellipse at 15% 60%, rgba(90,10,160,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(20,20,60,0.4) 0%, transparent 55%);
+}
+
+.screen {
+  display: none; width: 100%; max-width: 780px; min-height: 100vh;
+  padding: 28px 20px; flex-direction: column; align-items: center; gap: 18px;
+}
+.screen.active { display: flex; }
+
+/* ── TYPOGRAPHY ── */
+.game-title {
+  font-size: 2.8rem; color: var(--gold);
+  text-shadow: 0 0 24px rgba(255,215,0,0.35); text-align: center; letter-spacing: 2px;
+}
+.subtitle      { font-size: 1.05rem; color: var(--text-dim); text-align: center; font-style: italic; }
+.section-title { font-size: 1.5rem; color: var(--gold); text-align: center; }
+.divider       { width: 100%; max-width: 420px; height: 1px; background: var(--border); }
+
+/* ── BUTTONS ── */
+.btn {
+  padding: 13px 30px; font-family: Georgia, serif; font-size: 1.05rem;
+  border: 2px solid var(--gold); background: transparent; color: var(--gold);
+  cursor: pointer; border-radius: 5px; transition: all 0.18s; letter-spacing: 1px; min-width: 200px;
+}
+.btn:hover  { background: rgba(255,215,0,0.08); box-shadow: 0 0 14px rgba(255,215,0,0.28); }
+.btn:active { transform: scale(0.97); }
+.btn-secondary { border-color: var(--text-dim); color: var(--text-dim); }
+.btn-secondary:hover { border-color: var(--text); color: var(--text); background: rgba(255,255,255,0.05); box-shadow: none; }
+.btn-danger { border-color: var(--hp-red); color: var(--hp-red); }
+.btn-danger:hover { background: rgba(192,57,43,0.1); box-shadow: none; }
+
+/* ── SHOP BUTTON (small, inline) ── */
+.btn-shop {
+  padding: 6px 12px; font-size: 0.8rem; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text-dim); cursor: pointer;
+  border-radius: 5px; transition: all 0.15s; font-family: Georgia, serif;
+}
+.btn-shop:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); background: rgba(255,215,0,0.06); }
+.btn-shop:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── INPUTS ── */
+.name-input {
+  padding: 14px 20px; font-family: Georgia, serif; font-size: 1.25rem;
+  background: var(--bg-card); border: 2px solid var(--border); color: var(--text);
+  border-radius: 5px; width: 300px; text-align: center; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.name-input:focus { border-color: var(--gold); box-shadow: 0 0 12px rgba(255,215,0,0.22); }
+
+.answer-input {
+  padding: 12px 16px; font-family: Georgia, serif; font-size: 2rem; font-weight: bold;
+  background: var(--bg-card); border: 2px solid var(--border); color: var(--text);
+  border-radius: 8px; width: 150px; text-align: center; outline: none;
+  transition: border-color 0.2s; -moz-appearance: textfield;
+}
+.answer-input::-webkit-inner-spin-button,
+.answer-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.answer-input:focus    { border-color: var(--gold); box-shadow: 0 0 12px rgba(255,215,0,0.22); }
+.answer-input:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* ── HP BARS ── */
+.hp-wrap  { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.hp-label { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-dim); }
+.hp-track { background: var(--hp-bg); border-radius: 10px; height: 15px; width: 100%; overflow: hidden; }
+.hp-fill  { height: 100%; border-radius: 10px; transition: width 0.38s ease, background 0.38s ease; }
+.hp-fill.player  { background: var(--hp-green); }
+.hp-fill.monster { background: var(--hp-red); }
+
+/* ── WELCOME ── */
+#screen-welcome { justify-content: center; gap: 26px; }
+.welcome-icons { font-size: 3.8rem; text-align: center; letter-spacing: 8px; }
+.save-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 22px; text-align: center; color: var(--text-dim); font-size: 0.92rem; line-height: 1.7;
+}
+.save-card strong { color: var(--gold); font-size: 1.08rem; }
+
+/* ── LEVEL SELECT ── */
+.level-list { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 520px; }
+.level-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 18px 22px; display: flex; align-items: center; gap: 16px;
+  cursor: pointer; transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+}
+.level-card:hover { border-color: var(--gold); background: rgba(255,215,0,0.05); box-shadow: 0 0 14px rgba(255,215,0,0.15); }
+.level-icon { font-size: 2.2rem; min-width: 48px; text-align: center; }
+.level-info h3 { color: var(--gold); font-size: 1.05rem; margin-bottom: 3px; }
+.level-info p  { color: var(--text-dim); font-size: 0.82rem; }
+.level-done    { font-size: 0.85rem; margin-left: 8px; display: none; }
+
+/* ── RARITY ── */
+.rarity-common    { color: #aaaaaa; }
+.rarity-uncommon  { color: #57d900; }
+.rarity-rare      { color: #4da6ff; }
+.rarity-legendary { color: var(--gold); }
+
+/* ── COMBAT SCREEN ── */
+#screen-combat { gap: 14px; }
+.combat-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+.hunter-col    { display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
+.hunter-label  { font-size: 0.82rem; color: var(--text-dim); }
+.hunter-label strong { color: var(--text); }
+.gear-strip    { font-size: 0.72rem; color: var(--text-dim); font-style: italic; min-height: 16px; }
+.stats-strip   { font-size: 0.72rem; color: var(--text-dim); min-height: 16px; }
+.stats-strip .sv { color: var(--text); font-weight: bold; }
+.coins-col     { text-align: right; }
+.coins-amount  { font-size: 1.15rem; color: var(--gold); font-weight: bold; }
+.coins-label   { font-size: 0.72rem; color: var(--text-dim); }
+.right-col     { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+.boss-banner {
+  display: none; width: 100%; text-align: center; padding: 8px;
+  background: rgba(192,57,43,0.12); border: 1px solid rgba(200,60,60,0.3);
+  border-radius: 6px; color: #ff7070; font-size: 0.88rem; letter-spacing: 2px; text-transform: uppercase;
+}
+
+.monster-panel {
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 20px 24px; width: 100%; display: flex; flex-direction: column;
+  align-items: center; gap: 10px; position: relative;
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+.tier-badge {
+  position: absolute; top: 10px; left: 12px; font-size: 0.68rem; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 1px; background: var(--bg);
+  padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border);
+  transition: color 0.4s, border-color 0.4s, background 0.4s;
+}
+#screen-combat.is-boss .monster-panel { border-color: rgba(210,60,60,0.45); box-shadow: 0 0 22px rgba(200,40,40,0.12); }
+#screen-combat.is-boss .tier-badge   { color: #ff7070; border-color: rgba(210,60,60,0.4); background: rgba(192,57,43,0.2); }
+
+.monster-emoji { font-size: 5rem; line-height: 1; user-select: none; }
+.monster-emoji.hit   { animation: monHit 0.38s ease; }
+.monster-emoji.dying { animation: monDie 0.55s ease forwards; }
+@keyframes monHit {
+  0%{transform:translateX(0)} 20%{transform:translateX(-9px)} 50%{transform:translateX(9px)} 75%{transform:translateX(-5px)} 100%{transform:translateX(0)}
+}
+@keyframes monDie {
+  0%{transform:scale(1) rotate(0deg);opacity:1} 100%{transform:scale(0.05) rotate(80deg);opacity:0}
+}
+.monster-name-text { font-size: 1.35rem; color: var(--text); font-weight: bold; }
+
+.timer-wrap  { display: none; width: 100%; }
+.timer-track { background: var(--hp-bg); border-radius: 10px; height: 10px; overflow: hidden; }
+.timer-fill  { height: 100%; border-radius: 10px; background: var(--hp-green); width: 100%; }
+.timer-label { text-align: center; font-size: 0.7rem; color: var(--text-dim); margin-top: 3px; }
+
+.question-box {
+  width: 100%; background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 22px 16px; text-align: center; font-size: 2rem;
+}
+.question-box .q-num { color: var(--gold); font-weight: bold; }
+
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+.choice-btn {
+  padding: 18px 12px; font-family: Georgia, serif; font-size: 1.5rem; font-weight: bold;
+  border: 2px solid var(--border); background: var(--bg-card); color: var(--text);
+  cursor: pointer; border-radius: 8px; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.choice-btn:hover:not(:disabled) { border-color: var(--gold); background: rgba(255,215,0,0.07); box-shadow: 0 0 12px rgba(255,215,0,0.2); }
+.choice-btn:disabled { cursor: default; }
+.choice-btn.correct { border-color: var(--correct); background: rgba(39,174,96,0.18); color: var(--correct); }
+.choice-btn.wrong   { border-color: var(--wrong); background: rgba(192,57,43,0.15); color: var(--wrong); animation: wrongShake 0.28s ease; }
+@keyframes wrongShake {
+  0%{transform:translateX(0)} 30%{transform:translateX(-6px)} 70%{transform:translateX(6px)} 100%{transform:translateX(0)}
+}
+
+.answer-form { display: none; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.answer-row  { display: flex; gap: 12px; align-items: center; }
+.answer-hint { min-height: 22px; font-size: 0.88rem; color: var(--text-dim); font-style: italic; text-align: center; }
+
+.combat-log {
+  width: 100%; text-align: center; font-size: 0.9rem; color: var(--text-dim);
+  font-style: italic; padding: 9px 14px; min-height: 38px;
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; transition: color 0.2s;
+}
+.combat-log.good { color: #2ecc71; }
+.combat-log.bad  { color: #e74c3c; }
+.combat-log.info { color: var(--gold); }
+
+.progress-bar { display: flex; justify-content: space-between; width: 100%; font-size: 0.78rem; color: var(--text-dim); padding: 0 2px; }
+.progress-bar .gv { color: var(--gold); font-weight: bold; }
+
+/* ── DEATH ── */
+#screen-death { justify-content: center; gap: 20px; text-align: center; }
+.death-skull  { font-size: 5rem; animation: deathPulse 1.5s ease-in-out infinite; }
+@keyframes deathPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.1);opacity:0.75} }
+.death-title  { font-size: 2rem; color: var(--hp-red); text-shadow: 0 0 18px rgba(192,57,43,0.5); }
+.death-quote  { font-size: 1.1rem; color: var(--text-dim); font-style: italic; max-width: 480px; line-height: 1.65; }
+.stat-box {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 26px; font-size: 0.9rem; color: var(--text-dim); line-height: 2;
+  min-width: 270px; text-align: left;
+}
+.stat-box strong { color: var(--text); }
+.stat-box .gv   { color: var(--gold); }
+
+/* ── BOSS WIN ── */
+#screen-boss-win { justify-content: center; gap: 20px; text-align: center; }
+
+/* ══════════════════════════════════════════
+   SHOP STYLES
+══════════════════════════════════════════ */
+#screen-shop { gap: 14px; padding-top: 22px; }
+
+.shop-header {
+  display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 12px;
+}
+
+.loadout-card {
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 20px; width: 100%;
+}
+.loadout-title  { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px; }
+.loadout-grid   { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px 14px; }
+.loadout-row    { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; }
+.loadout-emoji  { font-size: 1rem; min-width: 22px; text-align: center; }
+.loadout-label  { color: var(--text-dim); font-size: 0.72rem; min-width: 48px; }
+
+.shop-tabs {
+  display: flex; width: 100%; max-width: 360px;
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
+.tab-btn {
+  flex: 1; padding: 11px; border: none; background: transparent; color: var(--text-dim);
+  font-family: Georgia, serif; font-size: 0.95rem; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.tab-btn:hover  { background: rgba(255,215,0,0.06); color: var(--text); }
+.tab-btn.active { background: rgba(255,215,0,0.12); color: var(--gold); }
+
+.shop-items { display: flex; flex-direction: column; gap: 8px; width: 100%; padding-bottom: 20px; }
+
+.item-group-label {
+  font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px;
+  padding: 8px 2px 4px; border-bottom: 1px solid var(--border); margin-top: 4px;
+}
+
+.shop-item {
+  background: var(--bg-card); border-radius: 8px; padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px;
+  border-left: 3px solid transparent; border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.shop-item:hover { background: rgba(255,255,255,0.02); }
+.shop-item.rarity-common    { border-left-color: #555; }
+.shop-item.rarity-uncommon  { border-left-color: #57d900; }
+.shop-item.rarity-rare      { border-left-color: #4da6ff; }
+.shop-item.rarity-legendary { border-left-color: var(--gold); }
+
+.item-icon { font-size: 1.8rem; min-width: 38px; text-align: center; }
+.item-body { flex: 1; }
+.item-name { font-size: 0.92rem; font-weight: bold; color: var(--text); margin-bottom: 2px; }
+.rarity-tag {
+  font-size: 0.6rem; padding: 1px 5px; border-radius: 3px;
+  font-family: Arial, sans-serif; letter-spacing: 0.5px; margin-left: 5px; vertical-align: middle;
+}
+.rarity-tag.rarity-common    { color: #aaa; border: 1px solid #555; }
+.rarity-tag.rarity-uncommon  { color: #57d900; border: 1px solid #57d900; }
+.rarity-tag.rarity-rare      { color: #4da6ff; border: 1px solid #4da6ff; }
+.rarity-tag.rarity-legendary { color: var(--gold); border: 1px solid var(--gold); }
+.item-desc  { font-size: 0.75rem; color: var(--text-dim); font-style: italic; }
+
+.item-action { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 95px; }
+.item-price  { font-size: 0.82rem; color: var(--gold); font-weight: bold; }
+.item-equipped-badge { font-size: 0.8rem; color: var(--correct); font-weight: bold; }
+
+.btn-item {
+  padding: 6px 12px; font-family: Georgia, serif; font-size: 0.8rem;
+  border-radius: 5px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.btn-buy  { border: 1px solid var(--gold); background: rgba(255,215,0,0.08); color: var(--gold); }
+.btn-buy:hover:not(:disabled) { background: rgba(255,215,0,0.18); }
+.btn-buy:disabled { border-color: var(--text-dim); color: var(--text-dim); background: transparent; cursor: not-allowed; opacity: 0.6; }
+.btn-equip { border: 1px solid #57d900; background: rgba(87,217,0,0.08); color: #57d900; }
+.btn-equip:hover { background: rgba(87,217,0,0.18); }
+
+/* ══════════════════════════════════════════
+   HUNTER DOLL
+══════════════════════════════════════════ */
+.doll-wrap        { display:flex; align-items:center; justify-content:center; gap:16px; padding:12px 0; }
+.doll-figure      { display:flex; flex-direction:column; align-items:center; gap:0; }
+.doll-head        { width:26px; height:26px; border-radius:50%; transition:background 0.4s,box-shadow 0.4s; }
+.doll-neck        { width:8px;  height:6px;  background:#222233; }
+.doll-chest-row   { display:flex; align-items:center; gap:2px; }
+.doll-arm         { width:10px; height:26px; border-radius:3px; transition:background 0.4s,box-shadow 0.4s; }
+.doll-chest-piece { width:40px; height:30px; border-radius:5px; transition:background 0.4s,box-shadow 0.4s; }
+.doll-waist       { width:24px; height:6px;  background:#1a1a2e; border-radius:2px; }
+.doll-legs-row    { display:flex; gap:6px; margin-top:2px; }
+.doll-leg         { width:14px; height:26px; border-radius:4px 4px 2px 2px; transition:background 0.4s,box-shadow 0.4s; }
+.doll-feet-row    { display:flex; gap:6px; margin-top:2px; }
+.doll-foot        { width:18px; height:10px; border-radius:2px 2px 4px 4px; transition:background 0.4s,box-shadow 0.4s; }
+.doll-sidearm     { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:56px; text-align:center; }
+.doll-side-emoji  { font-size:2rem; line-height:1; }
+.doll-side-label  { font-size:0.6rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; max-width:56px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.doll-name        { text-align:center; font-size:0.82rem; color:var(--text-dim); margin-top:6px; font-style:italic; }
+
+/* ══════════════════════════════════════════
+   SUMMARY SCREEN
+══════════════════════════════════════════ */
+#screen-summary { gap:16px; }
+
+.sum-top { display:flex; align-items:center; justify-content:center; gap:28px; width:100%; flex-wrap:wrap; }
+
+.sum-stats-row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; width:100%; }
+.sum-stat-box  { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:12px 16px; text-align:center; min-width:100px; flex:1; }
+.sum-stat-num  { font-size:1.6rem; font-weight:bold; color:var(--gold); }
+.sum-stat-label{ font-size:0.72rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.8px; margin-top:3px; }
+
+.sum-section   { width:100%; background:var(--bg-panel); border:1px solid var(--border); border-radius:8px; padding:16px 18px; }
+.sum-sec-title { font-size:0.72rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:12px; }
+
+.sum-number-row  { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.sum-num-label   { font-size:1rem; color:var(--gold); font-weight:bold; min-width:30px; }
+.sum-acc-wrap    { flex:1; }
+.sum-acc-track   { background:var(--hp-bg); border-radius:6px; height:12px; overflow:hidden; }
+.sum-acc-fill    { height:100%; border-radius:6px; transition:width 0.6s ease; }
+.sum-pct-label   { font-size:0.8rem; color:var(--text-dim); min-width:38px; text-align:right; }
+.sum-fact-dots   { display:flex; gap:3px; }
+.sum-fact-dot    { width:10px; height:10px; border-radius:2px; cursor:default; }
+
+.sum-highlights  { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; width:100%; }
+.sum-highlight   { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:0.82rem; flex:1; min-width:160px; }
+.sum-hl-label    { color:var(--text-dim); font-size:0.7rem; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.8px; }
+.sum-hl-val      { color:var(--text); font-weight:bold; }
+
+</style>
+</head>
+<body>
+
+<!-- ══ WELCOME ══ -->
+<div id="screen-welcome" class="screen">
+  <div class="welcome-icons">⚔️ 🏰 🐉</div>
+  <h1 class="game-title">Monster Hunter Math</h1>
+  <p class="subtitle">Master your times tables. Vanquish the beasts.</p>
+  <div class="divider"></div>
+  <div id="save-card" class="save-card" style="display:none"></div>
+  <div style="display:flex;flex-direction:column;gap:11px;align-items:center">
+    <button class="btn" id="btn-continue" style="display:none" onclick="continueGame()">⚔️ Continue Hunt</button>
+    <button class="btn" onclick="goToNameScreen()">🗡️ New Hunter</button>
+    <button class="btn btn-danger" id="btn-reset" style="display:none" onclick="confirmReset()">☠️ Reset Everything</button>
+  </div>
+</div>
+
+<!-- ══ NAME ══ -->
+<div id="screen-name" class="screen" style="justify-content:center;gap:22px;">
+  <h2 class="section-title">Choose Your Name</h2>
+  <p class="subtitle">Every legend begins with a name…</p>
+  <div style="font-size:3.5rem;text-align:center">🧙</div>
+  <input type="text" class="name-input" id="name-input" placeholder="Enter your name…"
+         maxlength="20" onkeydown="if(event.key==='Enter')submitName()" />
+  <button class="btn" onclick="submitName()">Begin the Hunt ⚔️</button>
+  <button class="btn btn-secondary" onclick="showScreen('screen-welcome')">← Back</button>
+</div>
+
+<!-- ══ LEVEL SELECT ══ -->
+<div id="screen-level-select" class="screen">
+  <div style="width:100%;display:flex;justify-content:space-between;align-items:flex-start">
+    <h2 class="section-title" style="text-align:left">⚔️ Choose Your Challenge</h2>
+    <div class="right-col">
+      <div class="coins-col">
+        <div class="coins-amount" id="ls-coins">0</div>
+        <div class="coins-label">Gold Coins</div>
+      </div>
+      <button class="btn-shop" onclick="openShop('levelselect')">🛒 Armory</button>
+    </div>
+  </div>
+  <p class="text-dim text-center" id="ls-welcome" style="font-size:0.95rem;color:var(--text-dim)"></p>
+  <div id="ls-doll"></div>
+  <div class="divider"></div>
+  <div class="level-list">
+    <div class="level-card" onclick="startLevel(1)">
+      <div class="level-icon">🎯</div>
+      <div class="level-info">
+        <h3>Level I — The Training Grounds <span id="ls-badge-1" class="level-done">✅</span></h3>
+        <p>Multiple choice · No timer · Learn the facts</p>
+      </div>
+    </div>
+    <div class="level-card" onclick="startLevel(2)">
+      <div class="level-icon">🌲</div>
+      <div class="level-info">
+        <h3>Level II — The Dark Forest <span id="ls-badge-2" class="level-done">✅</span></h3>
+        <p>Type the answer · No timer · Prove your recall</p>
+      </div>
+    </div>
+    <div class="level-card" onclick="startLevel(3)">
+      <div class="level-icon">🐉</div>
+      <div class="level-info">
+        <h3>Level III — The Dragon's Lair <span id="ls-badge-3" class="level-done">✅</span></h3>
+        <p>Type the answer · 10-second timer · Prove mastery</p>
+      </div>
+    </div>
+  </div>
+  <p id="ls-mastery" style="font-size:0.8rem;color:var(--text-dim);text-align:center;margin-top:4px"></p>
+  <button class="btn btn-secondary" style="min-width:auto;padding:10px 22px;font-size:0.9rem" onclick="showSummary()">📊 Session Summary</button>
+</div>
+
+<!-- ══ COMBAT ══ -->
+<div id="screen-combat" class="screen">
+  <div class="combat-header">
+    <div class="hunter-col">
+      <div class="hunter-label">Hunter: <strong id="c-hunter-name">—</strong></div>
+      <div id="c-gear-strip" class="gear-strip">No gear equipped</div>
+      <div id="c-stats-strip" class="stats-strip"></div>
+      <div class="hp-wrap">
+        <div class="hp-label"><span>HP</span><span id="c-player-hp-text">100 / 100</span></div>
+        <div class="hp-track"><div class="hp-fill player" id="c-player-hp-bar" style="width:100%"></div></div>
+      </div>
+    </div>
+    <div class="right-col">
+      <div class="coins-col">
+        <div class="coins-amount" id="c-coins">0</div>
+        <div class="coins-label">Gold Coins</div>
+      </div>
+      <button class="btn-shop" id="btn-shop" onclick="openShop('combat')">🛒 Armory</button>
+    </div>
+  </div>
+
+  <div class="boss-banner" id="boss-banner">⚠️ &nbsp; BOSS BATTLE &nbsp; ⚠️</div>
+
+  <div class="monster-panel">
+    <div class="tier-badge" id="c-tier-badge">TIER I</div>
+    <div class="monster-emoji" id="c-monster-emoji">👺</div>
+    <div class="monster-name-text" id="c-monster-name">Goblin</div>
+    <div class="hp-wrap" style="max-width:320px">
+      <div class="hp-label"><span id="c-monster-hp-label">Monster HP</span><span id="c-monster-hp-text">60 / 60</span></div>
+      <div class="hp-track"><div class="hp-fill monster" id="c-monster-hp-bar" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div class="timer-wrap" id="timer-wrap">
+    <div class="timer-track"><div class="timer-fill" id="timer-bar"></div></div>
+    <div class="timer-label">Time remaining</div>
+  </div>
+
+  <div class="question-box">
+    What is <span class="q-num" id="q-a">?</span> × <span class="q-num" id="q-b">?</span> ?
+  </div>
+
+  <div class="choices" id="choices"></div>
+
+  <div class="answer-form" id="answer-form">
+    <div class="answer-row">
+      <input type="number" class="answer-input" id="answer-input" placeholder="?"
+             min="1" max="990" onkeydown="if(event.key==='Enter')submitAnswer()" />
+      <button class="btn" style="min-width:auto;padding:13px 22px" onclick="submitAnswer()">→</button>
+    </div>
+    <div class="answer-hint" id="answer-hint"></div>
+  </div>
+
+  <div class="combat-log" id="combat-log">The battle begins…</div>
+
+  <div class="progress-bar">
+    <span>Facts cleared this run: <span class="gv" id="c-facts">0</span> / 40</span>
+    <span>Monsters defeated: <span class="gv" id="c-kills">0</span></span>
+  </div>
+</div>
+
+<!-- ══ DEATH ══ -->
+<div id="screen-death" class="screen">
+  <div class="death-skull">💀</div>
+  <h2 class="death-title">YOU HAVE FALLEN</h2>
+  <p class="death-quote" id="death-quote">…</p>
+  <div class="stat-box">
+    <div>Monsters defeated: <strong id="d-kills">0</strong></div>
+    <div>Facts cleared: <strong id="d-facts">0</strong> / 40</div>
+    <div>Gold coins: <strong class="gv" id="d-coins">0</strong></div>
+  </div>
+  <button class="btn" id="btn-retry-boss" style="display:none" onclick="retryBoss()">🐉 Retry Boss Fight</button>
+  <button class="btn" id="btn-restart-level" onclick="retryLevel()">⚔️ Restart Level</button>
+  <button class="btn btn-secondary" onclick="showLevelSelect()">← Level Select</button>
+</div>
+
+<!-- ══ BOSS WIN ══ -->
+<div id="screen-boss-win" class="screen">
+  <div id="bw-emoji" style="font-size:5rem">🏆</div>
+  <h2 id="bw-title" class="text-gold" style="font-size:2.2rem;text-align:center">LEVEL CLEARED!</h2>
+  <p id="bw-subtitle" class="subtitle"></p>
+  <div class="stat-box" style="min-width:280px;text-align:left">
+    <div>Monsters slain this run: <strong id="bw-kills">0</strong></div>
+    <div>Gold earned this run: <strong class="gv" id="bw-gold">0</strong></div>
+    <div>Overall accuracy: <strong id="bw-acc">—</strong></div>
+  </div>
+  <button class="btn" id="bw-next" style="display:none">Advance →</button>
+  <button class="btn btn-secondary" onclick="showSummary()">📊 View Summary</button>
+  <button class="btn btn-secondary" onclick="showLevelSelect()">← Level Select</button>
+</div>
+
+<!-- ══ SUMMARY ══ -->
+<div id="screen-summary" class="screen">
+  <h2 class="section-title">📊 Session Report</h2>
+
+  <div class="sum-top">
+    <div id="sum-doll"></div>
+    <div class="sum-stats-row" style="max-width:380px">
+      <div class="sum-stat-box"><div class="sum-stat-num" id="sum-kills">0</div><div class="sum-stat-label">Monsters Slain</div></div>
+      <div class="sum-stat-box"><div class="sum-stat-num" id="sum-gold" style="color:var(--gold)">0</div><div class="sum-stat-label">Gold Coins</div></div>
+      <div class="sum-stat-box"><div class="sum-stat-num" id="sum-acc">—</div><div class="sum-stat-label">All-time Accuracy</div></div>
+      <div class="sum-stat-box"><div class="sum-stat-num" id="sum-mastered">0</div><div class="sum-stat-label">Facts Mastered</div></div>
+    </div>
+  </div>
+
+  <div class="sum-section" style="width:100%">
+    <div class="sum-sec-title">Times Table Breakdown</div>
+    <div id="sum-number-grid"></div>
+    <div style="display:flex;gap:14px;font-size:0.7rem;color:var(--text-dim);margin-top:8px;flex-wrap:wrap">
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--hp-green);margin-right:4px;vertical-align:middle"></span>Mastered (≥80%)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--hp-orange);margin-right:4px;vertical-align:middle"></span>Needs work (50–79%)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--hp-red);margin-right:4px;vertical-align:middle"></span>Struggling (&lt;50%)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#333;margin-right:4px;vertical-align:middle"></span>Not yet tried</span>
+    </div>
+  </div>
+
+  <div class="sum-highlights" id="sum-highlights"></div>
+
+  <div style="display:flex;gap:12px;margin-top:4px;flex-wrap:wrap;justify-content:center">
+    <button class="btn" onclick="showLevelSelect()">⚔️ Keep Playing</button>
+    <button class="btn btn-secondary" onclick="showScreen('screen-welcome')">🏠 Main Menu</button>
+  </div>
+</div>
+
+<!-- ══ SHOP ══ -->
+<div id="screen-shop" class="screen">
+  <div class="shop-header">
+    <button class="btn btn-secondary" style="min-width:auto;padding:10px 18px" onclick="closeShop()">← Back</button>
+    <h2 class="section-title" style="font-size:1.3rem">⚔️ The Armory</h2>
+    <div class="coins-col">
+      <div class="coins-amount" id="shop-coins">0</div>
+      <div class="coins-label">Gold Coins</div>
+    </div>
+  </div>
+
+  <div class="loadout-card">
+    <div class="loadout-title" id="loadout-title">Equipment</div>
+    <div class="loadout-grid" id="loadout-grid"></div>
+  </div>
+
+  <div class="shop-tabs">
+    <button class="tab-btn active" id="tab-weapons" onclick="setShopTab('weapons')">⚔️ Weapons</button>
+    <button class="tab-btn"        id="tab-armor"   onclick="setShopTab('armor')">🛡️ Armor</button>
+  </div>
+
+  <div class="shop-items" id="shop-items"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// ITEM CATALOG
+// ══════════════════════════════════════════════════
+
+const WEAPONS = [
+  { id:'sw1', name:'Rusty Dagger',      emoji:'🗡️', cat:'weapon', group:'Swords',  price:40,  rarity:'common',    dmgBonus:4,  desc:'A dagger, somewhat rusty.' },
+  { id:'sw2', name:'Short Sword',       emoji:'⚔️', cat:'weapon', group:'Swords',  price:120, rarity:'uncommon',  dmgBonus:8,  desc:'Reliable and sharp.' },
+  { id:'sw3', name:'Broadsword',        emoji:'⚔️', cat:'weapon', group:'Swords',  price:280, rarity:'rare',      dmgBonus:14, desc:'A powerful two-handed blade.' },
+  { id:'sw4', name:'Excalibur',         emoji:'✨', cat:'weapon', group:'Swords',  price:550, rarity:'legendary', dmgBonus:20, desc:'The sword of legends.' },
+  { id:'ax1', name:'Hatchet',           emoji:'🪓', cat:'weapon', group:'Axes',    price:50,  rarity:'common',    dmgBonus:4,  desc:'Small but effective.' },
+  { id:'ax2', name:'Battle Axe',        emoji:'🪓', cat:'weapon', group:'Axes',    price:150, rarity:'uncommon',  dmgBonus:8,  desc:"A warrior's favorite." },
+  { id:'ax3', name:"Berserker's Axe",   emoji:'🔥', cat:'weapon', group:'Axes',    price:420, rarity:'legendary', dmgBonus:20, desc:'Forged in dragon fire.' },
+  { id:'hm1', name:'War Club',          emoji:'🪨', cat:'weapon', group:'Hammers', price:45,  rarity:'common',    dmgBonus:4,  desc:'Heavy and blunt.' },
+  { id:'hm2', name:'Warhammer',         emoji:'🔨', cat:'weapon', group:'Hammers', price:160, rarity:'uncommon',  dmgBonus:8,  desc:'Crushes armor and bones.' },
+  { id:'hm3', name:'Mjolnir',           emoji:'⚡', cat:'weapon', group:'Hammers', price:500, rarity:'legendary', dmgBonus:20, desc:"The thunder god's own hammer." },
+  { id:'mg1', name:'Oak Staff',         emoji:'🪄', cat:'weapon', group:'Magic',   price:60,  rarity:'common',    dmgBonus:4,  desc:'Channels basic magic.' },
+  { id:'mg2', name:'Crystal Staff',     emoji:'💎', cat:'weapon', group:'Magic',   price:180, rarity:'uncommon',  dmgBonus:8,  desc:'Amplifies spells greatly.' },
+  { id:'mg3', name:'Arcane Tome',       emoji:'📖', cat:'weapon', group:'Magic',   price:360, rarity:'rare',      dmgBonus:14, desc:'Contains forbidden knowledge.' },
+  { id:'mg4', name:'Staff of Ages',     emoji:'🌙', cat:'weapon', group:'Magic',   price:650, rarity:'legendary', dmgBonus:20, desc:'Wielded by the first mage.' },
+];
+
+const ARMOR = [
+  { id:'hd1', name:'Leather Cap',        emoji:'🪖', cat:'armor', slot:'head',   group:'Head',   price:40,  rarity:'common',    dr:1, desc:'Light and comfortable.' },
+  { id:'hd2', name:'Iron Helm',          emoji:'⛑️', cat:'armor', slot:'head',   group:'Head',   price:100, rarity:'uncommon',  dr:2, desc:'Solid iron protection.' },
+  { id:'hd3', name:'Mithril Helm',       emoji:'🪖', cat:'armor', slot:'head',   group:'Head',   price:250, rarity:'rare',      dr:3, desc:'Light as a feather, strong as steel.' },
+  { id:'hd4', name:'Dragon Crown',       emoji:'👑', cat:'armor', slot:'head',   group:'Head',   price:500, rarity:'legendary', dr:4, desc:'Only worn by true champions.' },
+  { id:'ch1', name:'Leather Vest',       emoji:'🦺', cat:'armor', slot:'chest',  group:'Chest',  price:50,  rarity:'common',    dr:1, desc:'Basic travelling armor.' },
+  { id:'ch2', name:'Chainmail',          emoji:'⛓️', cat:'armor', slot:'chest',  group:'Chest',  price:130, rarity:'uncommon',  dr:2, desc:'Linked iron rings.' },
+  { id:'ch3', name:'Steel Plate',        emoji:'🛡️', cat:'armor', slot:'chest',  group:'Chest',  price:300, rarity:'rare',      dr:3, desc:'Full plate protection.' },
+  { id:'ch4', name:'Dragon Scale',       emoji:'🐉', cat:'armor', slot:'chest',  group:'Chest',  price:600, rarity:'legendary', dr:4, desc:'Shed from an ancient dragon.' },
+  { id:'ha1', name:'Leather Gloves',     emoji:'🧤', cat:'armor', slot:'hands',  group:'Hands',  price:35,  rarity:'common',    dr:1, desc:'Simple hand protection.' },
+  { id:'ha2', name:'Iron Gauntlets',     emoji:'🦾', cat:'armor', slot:'hands',  group:'Hands',  price:90,  rarity:'uncommon',  dr:2, desc:'Armored iron fists.' },
+  { id:'ha3', name:'Arcane Gauntlets',   emoji:'🪄', cat:'armor', slot:'hands',  group:'Hands',  price:220, rarity:'rare',      dr:3, desc:'Channels magical energy.' },
+  { id:'ha4', name:'Gauntlets of Power', emoji:'⚡', cat:'armor', slot:'hands',  group:'Hands',  price:450, rarity:'legendary', dr:4, desc:'Your strikes echo like thunder.' },
+  { id:'ft1', name:'Leather Boots',      emoji:'👢', cat:'armor', slot:'feet',   group:'Feet',   price:35,  rarity:'common',    dr:1, desc:'Sturdy travelling boots.' },
+  { id:'ft2', name:'Iron Boots',         emoji:'🥾', cat:'armor', slot:'feet',   group:'Feet',   price:90,  rarity:'uncommon',  dr:2, desc:'Heavy but protective.' },
+  { id:'ft3', name:'Swift Boots',        emoji:'💨', cat:'armor', slot:'feet',   group:'Feet',   price:200, rarity:'rare',      dr:3, desc:'Move like the wind.' },
+  { id:'ft4', name:'Winged Greaves',     emoji:'🦅', cat:'armor', slot:'feet',   group:'Feet',   price:440, rarity:'legendary', dr:4, desc:'The boots of a sky god.' },
+  { id:'sh1', name:'Wooden Shield',      emoji:'🪵', cat:'armor', slot:'shield', group:'Shield', price:55,  rarity:'common',    dr:1, desc:'Better than nothing.' },
+  { id:'sh2', name:'Iron Shield',        emoji:'🛡️', cat:'armor', slot:'shield', group:'Shield', price:130, rarity:'uncommon',  dr:2, desc:'Solid iron defense.' },
+  { id:'sh3', name:'Tower Shield',       emoji:'🏰', cat:'armor', slot:'shield', group:'Shield', price:280, rarity:'rare',      dr:3, desc:'Covers your entire body.' },
+  { id:'sh4', name:'Aegis of Light',     emoji:'🌟', cat:'armor', slot:'shield', group:'Shield', price:550, rarity:'legendary', dr:4, desc:'Blessed by the gods themselves.' },
+];
+
+const ALL_ITEMS = [...WEAPONS, ...ARMOR];
+
+function findItem(id) { return ALL_ITEMS.find(i => i.id === id); }
+
+function getWeaponBonus() {
+  const item = G.gear.equipped.weapon ? findItem(G.gear.equipped.weapon) : null;
+  return item ? (item.dmgBonus || 0) : 0;
+}
+
+function getTotalDR() {
+  return ['head','chest','hands','feet','shield'].reduce((total, slot) => {
+    const item = G.gear.equipped[slot] ? findItem(G.gear.equipped[slot]) : null;
+    return total + (item ? (item.dr || 0) : 0);
+  }, 0);
+}
+
+// ══════════════════════════════════════════════════
+// GAME DATA
+// ══════════════════════════════════════════════════
+
+const ALL_FACTS = [];
+for (const a of [6,7,8,9])
+  for (let b = 1; b <= 10; b++)
+    ALL_FACTS.push({ id:`${a}x${b}`, a, b, answer: a*b });
+
+const CREATURES = [
+  { name:'Slime',        emoji:'🟢', tier:1, maxHp:60,  damage:8,  healOnWrong:12, points:10, label:'TIER I'   },
+  { name:'Goblin',       emoji:'👺', tier:1, maxHp:65,  damage:8,  healOnWrong:12, points:10, label:'TIER I'   },
+  { name:'Cave Bat',     emoji:'🦇', tier:1, maxHp:55,  damage:8,  healOnWrong:12, points:10, label:'TIER I'   },
+  { name:'Orc Warrior',  emoji:'👹', tier:2, maxHp:80,  damage:14, healOnWrong:18, points:20, label:'TIER II'  },
+  { name:'Skeleton',     emoji:'💀', tier:2, maxHp:75,  damage:13, healOnWrong:17, points:20, label:'TIER II'  },
+  { name:'Shadow Thief', emoji:'🥷', tier:2, maxHp:70,  damage:14, healOnWrong:16, points:20, label:'TIER II'  },
+  { name:'Troll',        emoji:'🧌', tier:3, maxHp:100, damage:20, healOnWrong:25, points:30, label:'TIER III' },
+  { name:'Werewolf',     emoji:'🐺', tier:3, maxHp:95,  damage:19, healOnWrong:22, points:30, label:'TIER III' },
+  { name:'Stone Golem',  emoji:'🗿', tier:3, maxHp:110, damage:20, healOnWrong:25, points:30, label:'TIER III' },
+];
+
+const BOSS = {
+  1: { name:'Dark Wizard',    emoji:'🧙', maxHp:280, damage:18, healOnWrong:15, points:100, label:'LEVEL BOSS' },
+  2: { name:'Wyvern',         emoji:'🐲', maxHp:280, damage:24, healOnWrong:15, points:100, label:'LEVEL BOSS' },
+  3: { name:'Ancient Dragon', emoji:'🐉', maxHp:280, damage:30, healOnWrong:15, points:100, label:'LEVEL BOSS' },
+};
+
+const DEATH_MESSAGES = [
+  "Looks like the monsters studied harder than you did. Humiliating.",
+  "Even that lowly Goblin knew its times tables. Do better.",
+  "The dungeon master is shaking his head. Slowly. In silence.",
+  "The monsters send their regards — and their math tutors.",
+  "Your calculator is weeping right now. Are you proud of yourself?",
+  "Fun fact: randomly mashing buttons is not a valid math strategy.",
+  "EVEN THE SLIMES ARE LAUGHING. The slimes, man.",
+  "Death by bad arithmetic. There are easier ways to go out, hero.",
+];
+
+const CORRECT_DMG = 28;
+const TIMER_MS    = 10000;
+
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+
+function freshGear() {
+  return { owned:[], equipped:{ weapon:null, head:null, chest:null, hands:null, feet:null, shield:null } };
+}
+
+function freshState() {
+  return {
+    hunter: { name:'', hp:100, maxHp:100, points:0 },
+    monster: null,
+    isBossFight: false,
+    completedLevels: [],
+    gear: freshGear(),
+    session: { cleared:new Set(), kills:0, bossShown:false, goldEarned:0 },
+    mastery: {},
+    question: null,
+    level: 1,
+    deathIdx: 0,
+    busy: false,
+    shopFrom: null,
+    shopTab: 'weapons',
+    timerTO: null, timerC1: null, timerC2: null,
+  };
+}
+
+let G = freshState();
+
+// ══════════════════════════════════════════════════
+// PERSISTENCE
+// ══════════════════════════════════════════════════
+
+const SAVE_KEY = 'mhm_save_v3';
+
+function save() {
+  localStorage.setItem(SAVE_KEY, JSON.stringify({
+    name: G.hunter.name, points: G.hunter.points,
+    mastery: G.mastery, deathIdx: G.deathIdx,
+    completedLevels: G.completedLevels, gear: G.gear,
+  }));
+}
+
+function loadSave() {
+  try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || null; }
+  catch { return null; }
+}
+
+function clearSave() { localStorage.removeItem(SAVE_KEY); }
+
+function applyMasteryFromSave(raw) {
+  G.mastery = {};
+  for (const f of ALL_FACTS)
+    G.mastery[f.id] = raw?.[f.id] || { correct:0, attempts:0 };
+}
+
+// ══════════════════════════════════════════════════
+// SCREEN ROUTING
+// ══════════════════════════════════════════════════
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════
+// WELCOME
+// ══════════════════════════════════════════════════
+
+function initWelcome() {
+  const data = loadSave();
+  const hasChar = !!(data && data.name);
+  document.getElementById('btn-continue').style.display = hasChar ? 'block' : 'none';
+  document.getElementById('btn-reset').style.display    = hasChar ? 'block' : 'none';
+  const card = document.getElementById('save-card');
+  if (hasChar) {
+    const mastered = Object.values(data.mastery||{}).filter(m=>m.correct>=3).length;
+    const done     = (data.completedLevels||[]).map(n=>['I','II','III'][n-1]).join(', ');
+    const owned    = (data.gear?.owned||[]).length;
+    card.style.display = 'block';
+    card.innerHTML =
+      `Welcome back, <strong>${data.name}</strong>!<br>` +
+      `<span style="font-size:.85rem">${data.points} gold · ${mastered}/40 mastered` +
+      (done  ? ` · Levels: ${done}` : '') +
+      (owned ? ` · ${owned} items owned` : '') +
+      `</span>`;
+  } else { card.style.display = 'none'; }
+  showScreen('screen-welcome');
+}
+
+function continueGame() {
+  const data = loadSave();
+  if (!data) return;
+  G.hunter.name     = data.name;
+  G.hunter.points   = data.points || 0;
+  G.deathIdx        = data.deathIdx || 0;
+  G.completedLevels = data.completedLevels || [];
+  G.gear            = data.gear || freshGear();
+  applyMasteryFromSave(data.mastery);
+  showLevelSelect();
+}
+
+function goToNameScreen() {
+  document.getElementById('name-input').value = '';
+  showScreen('screen-name');
+}
+
+function submitName() {
+  const input = document.getElementById('name-input');
+  const name  = input.value.trim();
+  if (!name) {
+    input.style.borderColor = 'var(--wrong)';
+    setTimeout(() => { input.style.borderColor = ''; }, 1200);
+    return;
+  }
+  G.hunter = { name, hp:100, maxHp:100, points:0 };
+  G.deathIdx = 0; G.completedLevels = []; G.gear = freshGear();
+  applyMasteryFromSave(null);
+  save();
+  showLevelSelect();
+}
+
+function confirmReset() {
+  if (!confirm('Erase all progress and start fresh with a new character?')) return;
+  clearSave(); G = freshState(); goToNameScreen();
+}
+
+// ══════════════════════════════════════════════════
+// LEVEL SELECT
+// ══════════════════════════════════════════════════
+
+function showLevelSelect() {
+  clearTimer();
+  document.getElementById('ls-coins').textContent   = G.hunter.points;
+  document.getElementById('ls-welcome').textContent = `${G.hunter.name} — Ready for battle`;
+  [1,2,3].forEach(n => {
+    document.getElementById(`ls-badge-${n}`).style.display =
+      G.completedLevels.includes(n) ? 'inline' : 'none';
+  });
+  const att = Object.values(G.mastery).reduce((s,m)=>s+m.attempts,0);
+  const cor = Object.values(G.mastery).reduce((s,m)=>s+m.correct,0);
+  const mas = Object.values(G.mastery).filter(m=>m.correct>=3).length;
+  document.getElementById('ls-mastery').textContent =
+    att === 0 ? 'No battles yet — choose your challenge!' :
+    `All-time accuracy: ${Math.round(100*cor/att)}% · ${mas}/40 facts mastered`;
+  showScreen('screen-level-select');
+  renderHunterFigure('ls-doll');
+}
+
+// ══════════════════════════════════════════════════
+// COMBAT SETUP
+// ══════════════════════════════════════════════════
+
+function startLevel(level) {
+  clearTimer();
+  G.level = level; G.hunter.hp = G.hunter.maxHp;
+  G.isBossFight = false;
+  G.session = { cleared:new Set(), kills:0, bossShown:false, goldEarned:0 };
+  G.busy = false;
+  document.getElementById('screen-combat').classList.remove('is-boss');
+  document.getElementById('boss-banner').style.display = 'none';
+  document.getElementById('c-hunter-name').textContent = G.hunter.name;
+  spawnMonster();
+  showScreen('screen-combat');
+  refreshCombatUI();
+}
+
+function retryLevel() { startLevel(G.level); }
+
+function retryBoss() {
+  clearTimer();
+  G.hunter.hp = G.hunter.maxHp; G.isBossFight = false; G.busy = false;
+  document.getElementById('screen-combat').classList.remove('is-boss');
+  document.getElementById('boss-banner').style.display = 'none';
+  showScreen('screen-combat');
+  document.getElementById('c-hunter-name').textContent = G.hunter.name;
+  refreshCombatUI();
+  setLog(`Returning to face the ${BOSS[G.level].name}…`, 'info');
+  setTimeout(() => spawnBoss(), 900);
+}
+
+// ══════════════════════════════════════════════════
+// MONSTER SPAWNING
+// ══════════════════════════════════════════════════
+
+function spawnMonster() {
+  const k = G.session.kills;
+  const pool = k < 5 ? [1,1,1,2] : k < 10 ? [1,2,2,2] : [2,2,3,3];
+  const tier = pool[Math.floor(Math.random()*pool.length)];
+  const opts = CREATURES.filter(c=>c.tier===tier);
+  const tmpl = opts[Math.floor(Math.random()*opts.length)];
+  G.monster = { ...tmpl, hp:tmpl.maxHp };
+  setMonsterUI(G.monster.emoji, G.monster.name, G.monster.label);
+  G.question = pickFact();
+  renderQuestion();
+}
+
+function spawnBoss() {
+  G.isBossFight = true; G.hunter.hp = G.hunter.maxHp;
+  const tmpl = BOSS[G.level];
+  G.monster = { ...tmpl, hp:tmpl.maxHp };
+  document.getElementById('screen-combat').classList.add('is-boss');
+  document.getElementById('boss-banner').style.display = 'flex';
+  setMonsterUI(tmpl.emoji, tmpl.name, '⚔️ LEVEL BOSS');
+  refreshCombatUI();
+  setLog(`⚠️ The ${tmpl.name} rises! Your HP is restored — fight for your life!`, 'info');
+  G.busy = false;
+  G.question = pickBossFact();
+  renderQuestion();
+}
+
+function setMonsterUI(emoji, name, label) {
+  const el = document.getElementById('c-monster-emoji');
+  el.className = 'monster-emoji'; el.textContent = emoji;
+  document.getElementById('c-monster-name').textContent     = name;
+  document.getElementById('c-tier-badge').textContent       = label;
+  document.getElementById('c-monster-hp-label').textContent = name + ' HP';
+}
+
+// ══════════════════════════════════════════════════
+// ADAPTIVE QUESTION SELECTION
+// ══════════════════════════════════════════════════
+
+function pickFact() {
+  const unc = ALL_FACTS.filter(f=>!G.session.cleared.has(f.id));
+  const cov = ALL_FACTS.filter(f=> G.session.cleared.has(f.id));
+  if (unc.length>0 && Math.random()<0.75) return weightedPick(unc);
+  if (cov.length>0)                       return weightedPick(cov);
+  return weightedPick(ALL_FACTS);
+}
+
+function pickBossFact() {
+  const hard = ALL_FACTS.filter(f=>f.b>=6);
+  return Math.random()<0.82 ? weightedPick(hard) : weightedPick(ALL_FACTS);
+}
+
+function weightedPick(list) {
+  const w = list.map(f => {
+    const m = G.mastery[f.id]||{correct:0,attempts:0};
+    return m.attempts===0 ? 1.0 : Math.max(0.08, 1-m.correct/m.attempts);
+  });
+  const tot = w.reduce((a,b)=>a+b,0);
+  let r = Math.random()*tot;
+  for (let i=0;i<list.length;i++) { r-=w[i]; if (r<=0) return list[i]; }
+  return list[list.length-1];
+}
+
+// ══════════════════════════════════════════════════
+// QUESTION RENDERING
+// ══════════════════════════════════════════════════
+
+function renderQuestion() {
+  const q = G.question;
+  document.getElementById('q-a').textContent = q.a;
+  document.getElementById('q-b').textContent = q.b;
+  if (G.level===1) renderMultipleChoice(q); else renderTypeAnswer();
+}
+
+function renderMultipleChoice(q) {
+  document.getElementById('choices').style.display     = 'grid';
+  document.getElementById('answer-form').style.display = 'none';
+  document.getElementById('timer-wrap').style.display  = 'none';
+  const grid = document.getElementById('choices');
+  grid.innerHTML = '';
+  makeChoices(q).forEach(val => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn'; btn.textContent = val;
+    btn.onclick = () => answer(val, btn);
+    grid.appendChild(btn);
+  });
+}
+
+function renderTypeAnswer() {
+  document.getElementById('choices').style.display     = 'none';
+  document.getElementById('choices').innerHTML         = '';
+  document.getElementById('answer-form').style.display = 'flex';
+  const inp = document.getElementById('answer-input');
+  inp.value = ''; inp.style.borderColor = ''; inp.disabled = false;
+  document.getElementById('answer-hint').textContent = '';
+  if (G.level===3) { document.getElementById('timer-wrap').style.display='block'; startTimer(); }
+  else              { document.getElementById('timer-wrap').style.display='none'; }
+  setTimeout(() => { if (!G.busy) inp.focus(); }, 60);
+}
+
+function makeChoices(fact) {
+  const c=fact.answer, seen=new Set([c]), cands=[c];
+  const src=[fact.a*(fact.b+1),fact.a*(fact.b-1),(fact.a+1)*fact.b,(fact.a-1)*fact.b,fact.a*(fact.b+2),fact.a*(fact.b-2)];
+  for (const v of src) { if (cands.length>=4) break; if (v>0&&!seen.has(v)){cands.push(v);seen.add(v);} }
+  for (let i=0;cands.length<4&&i<60;i++) {
+    const off=(Math.floor(Math.random()*4)+1)*(Math.random()<.5?fact.a:-fact.a);
+    const v=c+off; if (v>0&&!seen.has(v)){cands.push(v);seen.add(v);}
+  }
+  return shuffle(cands);
+}
+
+function shuffle(arr) {
+  const a=[...arr];
+  for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+// ══════════════════════════════════════════════════
+// TIMER
+// ══════════════════════════════════════════════════
+
+function startTimer() {
+  clearTimer();
+  const bar = document.getElementById('timer-bar');
+  bar.style.transition='none'; bar.style.width='100%'; bar.style.background='var(--hp-green)';
+  void bar.offsetWidth;
+  bar.style.transition=`width ${TIMER_MS}ms linear`; bar.style.width='0%';
+  G.timerC1=setTimeout(()=>{if(!G.busy)bar.style.background='var(--hp-orange)';},TIMER_MS*0.5);
+  G.timerC2=setTimeout(()=>{if(!G.busy)bar.style.background='var(--hp-red)';},   TIMER_MS*0.75);
+  G.timerTO=setTimeout(timeOut, TIMER_MS);
+}
+
+function clearTimer() {
+  [G.timerTO,G.timerC1,G.timerC2].forEach(t=>t&&clearTimeout(t));
+  G.timerTO=G.timerC1=G.timerC2=null;
+  const bar=document.getElementById('timer-bar');
+  if (bar){bar.style.transition='none';bar.style.background='var(--hp-green)';}
+}
+
+function timeOut() {
+  if (G.busy) return; G.busy=true;
+  const q=G.question;
+  const inp=document.getElementById('answer-input');
+  inp.disabled=true; inp.style.borderColor='var(--wrong)';
+  document.getElementById('answer-hint').textContent=`⏱️ Time's up! Answer: ${q.answer}`;
+  if (!G.mastery[q.id]) G.mastery[q.id]={correct:0,attempts:0};
+  G.mastery[q.id].attempts++;
+  const dmg=Math.max(3, G.monster.damage - getTotalDR()), heal=G.monster.healOnWrong;
+  G.hunter.hp =Math.max(0,G.hunter.hp -dmg);
+  G.monster.hp=Math.min(G.monster.maxHp,G.monster.hp+heal);
+  pulsePlayerHit();
+  setLog(`⏱️ Too slow! ${q.a} × ${q.b} = ${q.answer}. Took ${dmg} damage!`,'bad');
+  refreshCombatUI(); save();
+  setTimeout(()=>{ if(G.hunter.hp<=0) die(); else nextQuestion(); },1300);
+}
+
+// ══════════════════════════════════════════════════
+// ANSWER HANDLING
+// ══════════════════════════════════════════════════
+
+function submitAnswer() {
+  if (G.busy) return;
+  const raw=document.getElementById('answer-input').value.trim();
+  if (!raw) return;
+  const val=parseInt(raw,10); if (isNaN(val)) return;
+  answer(val,null);
+}
+
+function answer(val, clickedBtn) {
+  if (G.busy) return; G.busy=true; clearTimer();
+  const q=G.question, isCorrect=(val===q.answer);
+
+  if (G.level===1) {
+    document.querySelectorAll('.choice-btn').forEach(b=>{
+      b.disabled=true;
+      if (Number(b.textContent)===q.answer) b.classList.add('correct');
+    });
+    if (!isCorrect&&clickedBtn) clickedBtn.classList.add('wrong');
+  } else {
+    const inp=document.getElementById('answer-input');
+    inp.disabled=true;
+    if (isCorrect) { inp.style.borderColor='var(--correct)'; }
+    else { inp.style.borderColor='var(--wrong)'; document.getElementById('answer-hint').textContent=`Answer: ${q.answer}`; }
+  }
+
+  if (!G.mastery[q.id]) G.mastery[q.id]={correct:0,attempts:0};
+  G.mastery[q.id].attempts++;
+  const delay=isCorrect?650:1200;
+
+  if (isCorrect) {
+    G.mastery[q.id].correct++;
+    if (!G.isBossFight) G.session.cleared.add(q.id);
+    const hit = CORRECT_DMG + getWeaponBonus();
+    G.monster.hp=Math.max(0,G.monster.hp-hit);
+    pulseMonster();
+    setLog(`⚔️ You strike the ${G.monster.name} for ${hit} damage!`,'good');
+    refreshCombatUI(); save();
+    setTimeout(()=>{ if(G.monster.hp<=0){G.isBossFight?bossDefeated():killMonster();}else nextQuestion(); },delay);
+  } else {
+    const dmg=Math.max(3, G.monster.damage - getTotalDR()), heal=G.monster.healOnWrong;
+    G.hunter.hp =Math.max(0,G.hunter.hp-dmg);
+    G.monster.hp=Math.min(G.monster.maxHp,G.monster.hp+heal);
+    pulsePlayerHit();
+    setLog(`💥 Wrong! ${q.a} × ${q.b} = ${q.answer}. The ${G.monster.name} hits for ${dmg} and heals ${heal} HP!`,'bad');
+    refreshCombatUI(); save();
+    setTimeout(()=>{ if(G.hunter.hp<=0) die(); else nextQuestion(); },delay);
+  }
+}
+
+function nextQuestion() {
+  G.question = G.isBossFight ? pickBossFact() : pickFact();
+  renderQuestion();
+  G.busy=false;
+  refreshCombatUI();
+}
+
+// ══════════════════════════════════════════════════
+// COMBAT EVENTS
+// ══════════════════════════════════════════════════
+
+function killMonster() {
+  const pts=G.monster.points;
+  G.hunter.points+=pts; G.session.kills++; G.session.goldEarned+=pts;
+  setLog(`✨ ${G.monster.name} defeated! +${pts} gold coins!`,'info');
+  document.getElementById('c-monster-emoji').classList.add('dying');
+  refreshCombatUI(); save();
+  setTimeout(()=>{
+    if (G.session.cleared.size>=ALL_FACTS.length && !G.session.bossShown) {
+      G.session.bossShown=true;
+      setLog('⚠️ All facts cleared! The boss awakens…','info');
+      setTimeout(()=>spawnBoss(),1500);
+    } else {
+      spawnMonster(); refreshCombatUI(); G.busy=false;
+    }
+  },950);
+}
+
+function bossDefeated() {
+  const tmpl=BOSS[G.level];
+  G.hunter.points+=tmpl.points; G.session.kills++; G.session.goldEarned+=tmpl.points;
+  if (!G.completedLevels.includes(G.level)) G.completedLevels.push(G.level);
+  save();
+  setLog(`🏆 ${tmpl.name} has been SLAIN! Level cleared! +${tmpl.points} gold!`,'info');
+  document.getElementById('c-monster-emoji').classList.add('dying');
+  refreshCombatUI();
+  setTimeout(()=>showBossWin(),1100);
+}
+
+function showBossWin() {
+  const tmpl=BOSS[G.level], ln=['I','II','III'][G.level-1];
+  const att=Object.values(G.mastery).reduce((s,m)=>s+m.attempts,0);
+  const cor=Object.values(G.mastery).reduce((s,m)=>s+m.correct,0);
+  document.getElementById('bw-emoji').textContent    = tmpl.emoji;
+  document.getElementById('bw-title').textContent    = `LEVEL ${ln} CLEARED!`;
+  document.getElementById('bw-subtitle').textContent = `You have slain the ${tmpl.name}!`;
+  document.getElementById('bw-kills').textContent    = G.session.kills;
+  document.getElementById('bw-gold').textContent     = G.session.goldEarned;
+  document.getElementById('bw-acc').textContent      = att>0 ? Math.round(100*cor/att)+'%' : '—';
+  const nb=document.getElementById('bw-next');
+  if (G.level<3){ nb.style.display='block'; nb.textContent=`Advance to Level ${['II','III'][G.level-1]} →`; nb.onclick=()=>startLevel(G.level+1); }
+  else nb.style.display='none';
+  showScreen('screen-boss-win');
+}
+
+function die() {
+  clearTimer();
+  const msg=DEATH_MESSAGES[G.deathIdx%DEATH_MESSAGES.length];
+  G.deathIdx=(G.deathIdx+1)%DEATH_MESSAGES.length; save();
+  document.getElementById('death-quote').textContent = msg;
+  document.getElementById('d-kills').textContent     = G.session.kills;
+  document.getElementById('d-facts').textContent     = G.session.cleared.size;
+  document.getElementById('d-coins').textContent     = G.hunter.points;
+  const bb=document.getElementById('btn-retry-boss'), rl=document.getElementById('btn-restart-level');
+  if (G.isBossFight){ bb.style.display='block'; rl.className='btn btn-secondary'; }
+  else              { bb.style.display='none';  rl.className='btn'; }
+  showScreen('screen-death');
+}
+
+// ══════════════════════════════════════════════════
+// UI REFRESH
+// ══════════════════════════════════════════════════
+
+function refreshCombatUI() {
+  const pPct=Math.max(0,G.hunter.hp/G.hunter.maxHp*100);
+  const pBar=document.getElementById('c-player-hp-bar');
+  pBar.style.width=pPct+'%';
+  pBar.style.background=pPct<25?'var(--hp-red)':pPct<50?'var(--hp-orange)':'var(--hp-green)';
+  document.getElementById('c-player-hp-text').textContent=`${G.hunter.hp} / ${G.hunter.maxHp}`;
+  if (G.monster){
+    const mPct=Math.max(0,G.monster.hp/G.monster.maxHp*100);
+    document.getElementById('c-monster-hp-bar').style.width=mPct+'%';
+    document.getElementById('c-monster-hp-text').textContent=`${G.monster.hp} / ${G.monster.maxHp}`;
+  }
+  document.getElementById('c-coins').textContent = G.hunter.points;
+  document.getElementById('c-facts').textContent = G.session.cleared.size;
+  document.getElementById('c-kills').textContent = G.session.kills;
+  document.getElementById('c-gear-strip').textContent = gearStrip();
+  const hitDmg = CORRECT_DMG + getWeaponBonus();
+  const totalDR = getTotalDR();
+  document.getElementById('c-stats-strip').innerHTML =
+    `⚔️ <span class="sv">${hitDmg}</span> dmg per hit &nbsp;·&nbsp; 🛡️ <span class="sv">${totalDR}</span> armor`;
+  const sb=document.getElementById('btn-shop');
+  if (sb) sb.disabled = G.busy;
+}
+
+function setLog(msg,type){
+  const el=document.getElementById('combat-log');
+  el.textContent=msg; el.className='combat-log '+(type||'');
+}
+
+function pulseMonster(){
+  const el=document.getElementById('c-monster-emoji');
+  el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
+}
+
+function pulsePlayerHit(){
+  const bar=document.getElementById('c-player-hp-bar');
+  bar.style.boxShadow='0 0 18px rgba(192,57,43,0.9)';
+  setTimeout(()=>{bar.style.boxShadow='';},450);
+}
+
+function gearStrip() {
+  const parts=[];
+  const w=G.gear.equipped.weapon ? findItem(G.gear.equipped.weapon) : null;
+  const s=G.gear.equipped.shield ? findItem(G.gear.equipped.shield) : null;
+  if (w) parts.push(`${w.emoji} ${w.name}`);
+  if (s) parts.push(`${s.emoji} ${s.name}`);
+  return parts.length ? parts.join(' · ') : 'No gear equipped';
+}
+
+// ══════════════════════════════════════════════════
+// SHOP
+// ══════════════════════════════════════════════════
+
+function openShop(from) {
+  if (from==='combat' && G.busy) return;
+  clearTimer();
+  G.shopFrom = from || 'levelselect';
+  renderShop();
+  showScreen('screen-shop');
+}
+
+function closeShop() {
+  if (G.shopFrom==='combat') {
+    showScreen('screen-combat');
+    if (G.question && !G.busy) renderQuestion();
+  } else {
+    showLevelSelect();
+  }
+}
+
+function renderShop() {
+  document.getElementById('shop-coins').textContent = G.hunter.points;
+  document.getElementById('loadout-title').textContent = `${G.hunter.name}'s Equipment`;
+  renderLoadout();
+  setShopTab(G.shopTab||'weapons');
+}
+
+function setShopTab(tab) {
+  G.shopTab = tab;
+  document.getElementById('tab-weapons').classList.toggle('active', tab==='weapons');
+  document.getElementById('tab-armor').classList.toggle('active',   tab==='armor');
+  renderShopItems();
+}
+
+function renderLoadout() {
+  const SLOTS = [
+    { key:'weapon', label:'Weapon', def:'⚔️' },
+    { key:'head',   label:'Head',   def:'🪖' },
+    { key:'chest',  label:'Chest',  def:'🦺' },
+    { key:'hands',  label:'Hands',  def:'🧤' },
+    { key:'feet',   label:'Feet',   def:'👢' },
+    { key:'shield', label:'Shield', def:'🛡️' },
+  ];
+  document.getElementById('loadout-grid').innerHTML = SLOTS.map(slot => {
+    const id   = slot.key==='weapon' ? G.gear.equipped.weapon : G.gear.equipped[slot.key];
+    const item = id ? findItem(id) : null;
+    const nameHtml = item
+      ? `<span class="rarity-${item.rarity}">${item.name}</span>`
+      : `<span style="color:var(--text-dim)">None</span>`;
+    return `<div class="loadout-row">
+      <span class="loadout-emoji">${item?item.emoji:slot.def}</span>
+      <span class="loadout-label">${slot.label}</span>
+      <span>${nameHtml}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderShopItems() {
+  const items = G.shopTab==='weapons' ? WEAPONS : ARMOR;
+  const container = document.getElementById('shop-items');
+  container.innerHTML='';
+
+  const groups = {};
+  items.forEach(i=>{ if(!groups[i.group]) groups[i.group]=[]; groups[i.group].push(i); });
+
+  Object.entries(groups).forEach(([grp, grpItems])=>{
+    const hdr=document.createElement('div');
+    hdr.className='item-group-label'; hdr.textContent=grp;
+    container.appendChild(hdr);
+
+    grpItems.forEach(item=>{
+      const owned    = G.gear.owned.includes(item.id);
+      const equipped = isEquipped(item);
+      const afford   = G.hunter.points >= item.price;
+      const statTxt  = item.dmgBonus ? ` · +${item.dmgBonus} dmg` : item.dr ? ` · ${item.dr} armor` : '';
+      const slotTxt  = item.slot ? ` · ${item.slot}` : '';
+
+      let actionHTML;
+      if (equipped) {
+        actionHTML = `<div class="item-equipped-badge">✅ Equipped</div>`;
+      } else if (owned) {
+        actionHTML = `<button class="btn-item btn-equip" onclick="equipItem('${item.id}')">Equip</button>`;
+      } else {
+        actionHTML = `
+          <div class="item-price">${item.price} 🪙</div>
+          <button class="btn-item btn-buy" ${afford?'':'disabled'} onclick="buyItem('${item.id}')">
+            ${afford?'Buy':'Need more 🪙'}
+          </button>`;
+      }
+
+      const el=document.createElement('div');
+      el.className=`shop-item rarity-${item.rarity}`;
+      el.innerHTML=`
+        <div class="item-icon">${item.emoji}</div>
+        <div class="item-body">
+          <div class="item-name">${item.name}
+            <span class="rarity-tag rarity-${item.rarity}">${item.rarity.toUpperCase()}</span>
+          </div>
+          <div class="item-desc">${item.desc}${slotTxt}<span style="color:var(--gold)">${statTxt}</span></div>
+        </div>
+        <div class="item-action">${actionHTML}</div>`;
+      container.appendChild(el);
+    });
+  });
+}
+
+function buyItem(id) {
+  const item=findItem(id);
+  if (!item||G.hunter.points<item.price||G.gear.owned.includes(id)) return;
+  G.hunter.points-=item.price;
+  G.gear.owned.push(id);
+  equipItem(id); // auto-equip; calls save + re-render
+}
+
+function equipItem(id) {
+  const item=findItem(id);
+  if (!item||!G.gear.owned.includes(id)) return;
+  if (item.cat==='weapon') G.gear.equipped.weapon=id;
+  else                     G.gear.equipped[item.slot]=id;
+  save();
+  renderShop();
+}
+
+function isEquipped(item) {
+  return item.cat==='weapon'
+    ? G.gear.equipped.weapon===item.id
+    : G.gear.equipped[item.slot]===item.id;
+}
+
+// ══════════════════════════════════════════════════
+// HUNTER DOLL
+// ══════════════════════════════════════════════════
+
+const RARITY_BG = {
+  none:      '#252535',
+  common:    '#3e3e58',
+  uncommon:  '#1a520a',
+  rare:      '#0d3570',
+  legendary: '#705200',
+};
+const RARITY_GLOW_COLOR = {
+  none:      'transparent',
+  common:    'transparent',
+  uncommon:  '#57d900',
+  rare:      '#4da6ff',
+  legendary: '#ffd700',
+};
+
+function getSlotRarity(slotKey) {
+  const id = slotKey === 'weapon' ? G.gear.equipped.weapon : G.gear.equipped[slotKey];
+  if (!id) return 'none';
+  const item = findItem(id);
+  return item ? item.rarity : 'none';
+}
+
+function dollPartStyle(slotKey) {
+  const r = getSlotRarity(slotKey);
+  const glow = RARITY_GLOW_COLOR[r];
+  const shadow = (r === 'none' || r === 'common') ? 'none' : `0 0 10px ${glow}88, 0 0 18px ${glow}44`;
+  return `background:${RARITY_BG[r]};box-shadow:${shadow}`;
+}
+
+function dollSideGlow(rarity) {
+  const c = RARITY_GLOW_COLOR[rarity];
+  return (rarity === 'none' || rarity === 'common') ? '' : `filter:drop-shadow(0 0 6px ${c})`;
+}
+
+function renderHunterFigure(targetId) {
+  const wr = getSlotRarity('weapon');
+  const sr = getSlotRarity('shield');
+  const wi = G.gear.equipped.weapon ? findItem(G.gear.equipped.weapon) : null;
+  const si = G.gear.equipped.shield ? findItem(G.gear.equipped.shield) : null;
+
+  document.getElementById(targetId).innerHTML = `
+    <div class="doll-wrap">
+      <div class="doll-sidearm">
+        <span class="doll-side-emoji" style="${dollSideGlow(wr)}">${wi ? wi.emoji : '✊'}</span>
+        <span class="doll-side-label">${wi ? wi.name : 'Unarmed'}</span>
+      </div>
+      <div>
+        <div class="doll-figure">
+          <div class="doll-head"        style="${dollPartStyle('head')}"></div>
+          <div class="doll-neck"></div>
+          <div class="doll-chest-row">
+            <div class="doll-arm"       style="${dollPartStyle('hands')}"></div>
+            <div class="doll-chest-piece" style="${dollPartStyle('chest')}"></div>
+            <div class="doll-arm"       style="${dollPartStyle('hands')}"></div>
+          </div>
+          <div class="doll-waist"></div>
+          <div class="doll-legs-row">
+            <div class="doll-leg"       style="${dollPartStyle('feet')}"></div>
+            <div class="doll-leg"       style="${dollPartStyle('feet')}"></div>
+          </div>
+          <div class="doll-feet-row">
+            <div class="doll-foot"      style="${dollPartStyle('feet')}"></div>
+            <div class="doll-foot"      style="${dollPartStyle('feet')}"></div>
+          </div>
+        </div>
+        <div class="doll-name">${G.hunter.name}</div>
+      </div>
+      <div class="doll-sidearm">
+        <span class="doll-side-emoji" style="${dollSideGlow(sr)}">${si ? si.emoji : '🤛'}</span>
+        <span class="doll-side-label">${si ? si.name : 'No Shield'}</span>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════
+// SESSION SUMMARY
+// ══════════════════════════════════════════════════
+
+function showSummary() {
+  clearTimer();
+
+  // Stats
+  const allAtt = Object.values(G.mastery).reduce((s,m)=>s+m.attempts,0);
+  const allCor = Object.values(G.mastery).reduce((s,m)=>s+m.correct,0);
+  const mastered = Object.values(G.mastery).filter(m=>m.attempts>=2 && m.correct/m.attempts>=0.8).length;
+
+  document.getElementById('sum-kills').textContent    = G.session.kills;
+  document.getElementById('sum-gold').textContent     = G.hunter.points;
+  document.getElementById('sum-acc').textContent      = allAtt>0 ? Math.round(100*allCor/allAtt)+'%' : '—';
+  document.getElementById('sum-mastered').textContent = mastered + '/40';
+
+  // Doll
+  renderHunterFigure('sum-doll');
+
+  // Per-number grid
+  const grid = document.getElementById('sum-number-grid');
+  grid.innerHTML = '';
+  [6,7,8,9].forEach(a => {
+    const facts = ALL_FACTS.filter(f=>f.a===a);
+    let tot=0, cor=0;
+    facts.forEach(f=>{ const m=G.mastery[f.id]||{correct:0,attempts:0}; tot+=m.attempts; cor+=m.correct; });
+    const pct = tot===0 ? null : Math.round(100*cor/tot);
+    const pctLabel = pct===null ? '—' : pct+'%';
+    const fillColor = pct===null ? '#333' : pct>=80 ? 'var(--hp-green)' : pct>=50 ? 'var(--hp-orange)' : 'var(--hp-red)';
+    const barWidth  = pct===null ? 0 : pct;
+
+    const dots = facts.map(f=>{
+      const m = G.mastery[f.id]||{correct:0,attempts:0};
+      let bg, tip;
+      if (m.attempts===0)                        { bg='#333333'; tip=`${f.a}×${f.b}=${f.answer} — not tried`; }
+      else if (m.correct/m.attempts>=0.8)        { bg='var(--hp-green)';  tip=`${f.a}×${f.b}=${f.answer} ✓ ${Math.round(100*m.correct/m.attempts)}%`; }
+      else if (m.correct/m.attempts>=0.5)        { bg='var(--hp-orange)'; tip=`${f.a}×${f.b}=${f.answer} ~ ${Math.round(100*m.correct/m.attempts)}%`; }
+      else                                        { bg='var(--hp-red)';    tip=`${f.a}×${f.b}=${f.answer} ✗ ${Math.round(100*m.correct/m.attempts)}%`; }
+      return `<div class="sum-fact-dot" style="background:${bg}" title="${tip}"></div>`;
+    }).join('');
+
+    const row = document.createElement('div');
+    row.className = 'sum-number-row';
+    row.innerHTML = `
+      <div class="sum-num-label">${a}×</div>
+      <div class="sum-acc-wrap">
+        <div class="sum-acc-track">
+          <div class="sum-acc-fill" style="width:${barWidth}%;background:${fillColor}"></div>
+        </div>
+      </div>
+      <div class="sum-pct-label">${pctLabel}</div>
+      <div class="sum-fact-dots">${dots}</div>`;
+    grid.appendChild(row);
+  });
+
+  // Highlights
+  const attempted = ALL_FACTS.filter(f=>{ const m=G.mastery[f.id]; return m && m.attempts>=2; });
+  attempted.sort((a,b)=>{
+    const ma=G.mastery[a.id], mb=G.mastery[b.id];
+    return (mb.correct/mb.attempts) - (ma.correct/ma.attempts);
+  });
+
+  const highlights = document.getElementById('sum-highlights');
+  highlights.innerHTML = '';
+
+  if (attempted.length > 0) {
+    const best = attempted[0];
+    const bm   = G.mastery[best.id];
+    const bPct = Math.round(100*bm.correct/bm.attempts);
+    const bestEl = document.createElement('div');
+    bestEl.className = 'sum-highlight';
+    bestEl.innerHTML = `<div class="sum-hl-label">✅ Strongest Fact</div>
+      <div class="sum-hl-val" style="color:var(--hp-green)">${best.a} × ${best.b} = ${best.answer}</div>
+      <div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px">${bPct}% correct · ${bm.attempts} attempts</div>`;
+    highlights.appendChild(bestEl);
+  }
+
+  if (attempted.length > 1) {
+    const worst = attempted[attempted.length-1];
+    const wm    = G.mastery[worst.id];
+    const wPct  = Math.round(100*wm.correct/wm.attempts);
+    const worstEl = document.createElement('div');
+    worstEl.className = 'sum-highlight';
+    worstEl.innerHTML = `<div class="sum-hl-label">⚠️ Needs More Practice</div>
+      <div class="sum-hl-val" style="color:var(--hp-red)">${worst.a} × ${worst.b} = ${worst.answer}</div>
+      <div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px">${wPct}% correct · ${wm.attempts} attempts</div>`;
+    highlights.appendChild(worstEl);
+  }
+
+  const notTried = ALL_FACTS.filter(f=>!(G.mastery[f.id]?.attempts)).length;
+  if (notTried > 0) {
+    const ntEl = document.createElement('div');
+    ntEl.className = 'sum-highlight';
+    ntEl.innerHTML = `<div class="sum-hl-label">📖 Not Yet Tried</div>
+      <div class="sum-hl-val">${notTried} fact${notTried!==1?'s':''}</div>
+      <div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px">Keep playing to discover them</div>`;
+    highlights.appendChild(ntEl);
+  }
+
+  showScreen('screen-summary');
+}
+
+// ══════════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════════
+
+initWelcome();
+</script>
+</body>
+</html>
