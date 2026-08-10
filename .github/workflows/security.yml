@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  security-events: write
+
 jobs:
   security:
     uses: hillzj-arch/PipelineScanner/.github/workflows/scan.yml@main
+    secrets: inherit
